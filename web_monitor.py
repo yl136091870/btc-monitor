@@ -73,6 +73,11 @@ st.markdown("""
         font-size: 1.3rem;
         font-weight: bold;
     }
+    .time-text {
+        font-size: 0.7rem;
+        color: gray;
+        margin-top: 0.1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -277,15 +282,26 @@ def main():
     vol_btc = float(ticker.get("volCcy24h", 0))
     volume_usdt = vol_btc * current_price
 
-    # ---------- 当前价格单独一行 ----------
+    # 计算数据获取时间（交易所ticker数据时间戳）
+    ticker_ts = ticker.get("ts", "")
+    if ticker_ts:
+        try:
+            update_time = datetime.fromtimestamp(int(ticker_ts) / 1000).strftime("%H:%M:%S")
+        except:
+            update_time = datetime.now().strftime("%H:%M:%S")
+    else:
+        update_time = datetime.now().strftime("%H:%M:%S")
+
+    # ---------- 当前价格居中，下方显示更新时间 ----------
     st.markdown(f"""
-    <div style="margin-bottom:0.5rem;">
+    <div style="margin-bottom:0.5rem; text-align: center;">
         <div class="price-label">当前价格</div>
         <div class="price-large">{current_price:.2f} USDT</div>
+        <div class="time-text">数据获取时间：{update_time}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------- 24h最高 / 24h最低 (与下方涨跌对齐) ----------
+    # ---------- 24h最高 / 24h最低 ----------
     st.markdown(f"""
     <div class="data-row">
         <div class="data-item">
