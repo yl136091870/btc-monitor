@@ -62,65 +62,85 @@ def get_candles(bar="15m", limit=200):
         st.error(f"K线获取失败 ({bar}): {e}")
     return None
 
+def compute_macd(close, fast=12, slow=26, signal=9):
+    """纯 Python 实现 MACD"""
+    ema_fast = close.ewm(span=fast, adjust=False).mean()
+    ema_slow = close.ewm(span=slow, adjust=False).mean()
+    macd_line = ema_fast - ema_slow
+    signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+    histogram = macd_line - signal_line
+    return macd_line, signal_line, histogram
+
+def compute_kdj(high, low, close, n=9, m1=3, m2=3):
+    """纯 Python 实现 KDJ"""
+    low_list = low.rolling(window=n, min_periods=1).min()
+    high_list = high.rolling(window=n, min_periods=1).max()
+    rsv = (close - low_list) / (high_list - low_list) * 100
+    rsv = rsv.fillna(50)  # 处理极值情况
+    k = np.zeros(len(rsv)); d = np.zeros(len(rsv))
+    for i in range(len(rsv)):
+        if i == 0:
+            k[i] = 50; d[i] = 50  # 初始值
+        else:
+            k[i] = (m1-1)/m1 * k[i-1] + 1/m1 * rsv.iloc[i]
+            d[i] = (m2-1)/m2 * d[i-1] + 1/m2 * k[i]
+    j = 3 * k - 2 * d
+    return k, d, j
+
 def compute_indicators(candles, label=""):
+    """计算所有技术指标，返回计算结果字典"""
     if not candles or len(candles) < 30:
         return None
+
     cols = ["ts", "open", "high", "low", "close", "vol", "volCcy", "volCcyQuote", "confirm"]
     df = pd.DataFrame(candles, columns=cols)
     df = df.iloc[::-1].reset_index(drop=True)
+
     for col in ["open", "high", "low", "close", "vol", "volCcy"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
+    # ----- 均线 -----
     df["MA5"] = df["close"].rolling(5).mean()
     df["MA10"] = df["close"].rolling(10).mean()
     df["MA20"] = df["close"].rolling(20).mean()
     df["MA50"] = df["close"].rolling(50).mean()
 
-    from pandas_ta import macd
-    macd_df = macd(df["close"], fast=12, slow=26, signal=9)
-    df["MACD"] = macd_df["MACD_12_26_9"]
-    df["MACD_signal"] = macd_df["MACDs_12_26_9"]
-    df["MACD_hist"] = macd_df["MACDh_12_26_9"]
+    # ----- MACD (使用自定义函数) -----
+    df["MACD"], df["MACD_signal"], df["MACD_hist"] = compute_macd(df["close"])
 
-    low_min = df["low"].rolling(9).min()
-    high_max = df["high"].rolling(9).max()
-    rsv = (df["close"] - low_min) / (high_max - low_min) * 100
-    rsv = rsv.fillna(50)
-    K = np.zeros(len(df)); D = np.zeros(len(df)); J = np.zeros(len(df))
-    for i in range(len(df)):
-        if i == 0:
-            K[i] = D[i] = 50
-        else:
-            K[i] = 2/3 * K[i-1] + 1/3 * rsv.iloc[i]
-            D[i] = 2/3 * D[i-1] + 1/3 * K[i]
-        J[i] = 3 * K[i] - 2 * D[i]
-    df["K"], df["D"], df["J"] = K, D, J
+    # ----- KDJ (使用自定义函数) -----
+    df["K"], df["D"], df["J"] = compute_kdj(df["high"], df["low"], df["close"])
 
+    # ----- RSI -----
     delta = df["close"].diff()
     gain = delta.where(delta > 0, 0.0)
     loss = -delta.where(delta < 0, 0.0)
     rs = gain.rolling(14).mean() / loss.rolling(14).mean()
     df["RSI"] = 100 - (100 / (1 + rs))
 
+    # ----- 成交量均线 -----
     df["VOL_MA5"] = df["vol"].rolling(5).mean()
     df["VOL_MA20"] = df["vol"].rolling(20).mean()
 
+    # ----- 多周期撑压位 -----
     recent_20 = df.tail(20); recent_50 = df.tail(50)
     resistance_20, support_20 = recent_20["high"].max(), recent_20["low"].min()
     resistance_50, support_50 = recent_50["high"].max(), recent_50["low"].min()
 
     latest = df.iloc[-1]
-    return {
+    indicators = {
         "label": label,
-        "close": latest["close"],
+        "latest_close": latest["close"],
         "MA5": latest["MA5"], "MA10": latest["MA10"], "MA20": latest["MA20"], "MA50": latest["MA50"],
         "MACD": latest["MACD"], "MACD_signal": latest["MACD_signal"], "MACD_hist": latest["MACD_hist"],
         "K": latest["K"], "D": latest["D"], "J": latest["J"], "RSI": latest["RSI"],
-        "vol": latest["vol"], "VOL_MA5": latest["VOL_MA5"], "VOL_MA20": latest["VOL_MA20"],
-        "res_20": resistance_20, "sup_20": support_20,
-        "res_50": resistance_50, "sup_50": support_50,
+        "vol_latest": latest["vol"], "VOL_MA5": latest["VOL_MA5"], "VOL_MA20": latest["VOL_MA20"],
+        "resistance_20": resistance_20, "support_20": support_20,
+        "resistance_50": resistance_50, "support_50": support_50,
         "trend": "上升" if latest["MA5"] > latest["MA20"] else "下降",
+        "ma_cross": "金叉" if latest["MA5"] > latest["MA10"] else "死叉",
     }
+    return indicators
 
 def main():
     st.set_page_config(page_title="BTC永续合约盯盘", layout="wide")
