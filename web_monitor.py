@@ -79,11 +79,6 @@ st.markdown("""
         color: gray;
         margin-top: 0.1rem;
     }
-    .btn-right {
-        display: flex;
-        justify-content: flex-end;
-        margin-bottom: 0.5rem;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -249,13 +244,13 @@ def main():
     st.markdown("<h4 style='margin:0; white-space:nowrap;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
     st.caption("温馨提示：本页面仅用于AI交流学习，不构成任何投资建议。")
 
-    # 手动分析按钮
-    st.markdown('<div class="btn-right">', unsafe_allow_html=True)
-    if st.button("deepseek分析", key="ai_btn"):
-        with st.spinner("分析中..."):
-            run_analysis()
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 手动分析按钮（靠右）
+    left, right = st.columns([7, 1])
+    with right:
+        if st.button("deepseek分析", key="ai_btn"):
+            with st.spinner("分析中..."):
+                run_analysis()
+            st.rerun()
 
     # 置顶AI建议
     suggestion = st.session_state.latest_suggestion
@@ -272,7 +267,7 @@ def main():
 
     current_price = float(ticker["last"])
 
-    # 涨跌计算（保持逻辑不变，但只用于显示）
+    # 涨跌计算
     change_daily = 0.0
     daily_kline = get_candles("1D", 1)
     if daily_kline and len(daily_kline) > 0:
