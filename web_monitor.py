@@ -22,8 +22,6 @@ client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=BASE_URL)
 
 if "latest_analysis" not in st.session_state:
     st.session_state.latest_analysis = "点击“deepseek分析”按钮查看结果"
-if "latest_suggestion" not in st.session_state:
-    st.session_state.latest_suggestion = ""
 if "indicators" not in st.session_state:
     st.session_state.indicators = None
 
@@ -35,8 +33,7 @@ st.markdown("""
         padding-bottom: 0.2rem !important;
     }
     .stButton button {
-        width: auto !important;
-        min-width: 100px;
+        width: 100% !important;
         padding: 0.2rem 0.8rem;
         font-weight: bold;
     }
@@ -179,7 +176,6 @@ def compute_indicators(candles, label=""):
     }
 
 def run_analysis():
-    """手动触发时的完整AI分析"""
     ticker = get_ticker()
     funding = get_funding_rate()
     if not ticker:
@@ -231,11 +227,6 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
         analysis = f"AI分析出错: {e}"
 
     st.session_state.latest_analysis = analysis
-    suggestion = ""
-    match = re.search(r'【(.*?)】', analysis)
-    if match:
-        suggestion = match.group(1)
-    st.session_state.latest_suggestion = suggestion
 
 def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
@@ -243,19 +234,6 @@ def main():
     # 标题
     st.markdown("<h4 style='margin:0; white-space:nowrap;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
     st.caption("温馨提示：本页面仅用于AI交流学习，不构成任何投资建议。")
-
-    # 手动分析按钮（靠右）
-    left, right = st.columns([7, 1])
-    with right:
-        if st.button("deepseek分析", key="ai_btn"):
-            with st.spinner("分析中..."):
-                run_analysis()
-            st.rerun()
-
-    # 置顶AI建议
-    suggestion = st.session_state.latest_suggestion
-    if suggestion:
-        st.markdown(f"<div style='color:#DB4437; font-weight:bold; margin-bottom:0.3rem;'>{suggestion}</div>", unsafe_allow_html=True)
 
     # 获取数据
     ticker = get_ticker()
@@ -382,8 +360,21 @@ def main():
             st.caption(f"💰 资金费率: {funding_rate} | 下次结算: {next_time_str}")
         else:
             st.caption(f"💰 资金费率: {funding_rate}")
+    else:
+        st.caption("💰 资金费率: 暂无数据")
 
-    # 技术指标
+    # deepseek分析按钮（居中，占满行）
+    if st.button("deepseek分析", use_container_width=True):
+        with st.spinner("分析中..."):
+            run_analysis()
+        st.rerun()
+
+    # AI 分析详情（在上）
+    st.markdown("<div class='small-title'>🤖 AI 分析详情</div>", unsafe_allow_html=True)
+    analysis = st.session_state.latest_analysis
+    st.markdown(f"<small>{analysis.replace(chr(10), '<br>')}</small>", unsafe_allow_html=True)
+
+    # 技术指标（在下）
     inds = st.session_state.indicators
     if inds:
         st.markdown("<div class='small-title'>📊 技术指标</div>", unsafe_allow_html=True)
@@ -401,11 +392,6 @@ def main():
             col_a.markdown("<small>日线：MA5={MA5:.2f} MA20={MA20:.2f} 趋势={trend}</small>".format(**inds['1d']), unsafe_allow_html=True)
     else:
         st.caption("技术指标将在首次分析后显示")
-
-    # AI 分析详情
-    st.markdown("<div class='small-title'>🤖 AI 分析详情</div>", unsafe_allow_html=True)
-    analysis = st.session_state.latest_analysis
-    st.markdown(f"<small>{analysis.replace(chr(10), '<br>')}</small>", unsafe_allow_html=True)
 
     time.sleep(REFRESH_INTERVAL)
     st.rerun()
