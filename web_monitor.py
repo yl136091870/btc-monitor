@@ -22,6 +22,8 @@ client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=BASE_URL)
 
 if "latest_analysis" not in st.session_state:
     st.session_state.latest_analysis = "点击“deepseek分析”按钮查看结果"
+if "latest_suggestion" not in st.session_state:
+    st.session_state.latest_suggestion = ""
 if "indicators" not in st.session_state:
     st.session_state.indicators = None
 
@@ -75,6 +77,14 @@ st.markdown("""
         font-size: 0.7rem;
         color: gray;
         margin-top: 0.1rem;
+    }
+    .suggestion-box {
+        background-color: #2e2e2e;
+        border-left: 4px solid #DB4437;
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+        border-radius: 4px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -201,7 +211,6 @@ MACD(DIF/DEA/柱)：{ind['MACD']:.2f}/{ind['MACD_signal']:.2f}/{ind['MACD_hist']
 KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 撑压(20/50)：{ind['support_20']:.2f}/{ind['resistance_20']:.2f} | {ind['support_50']:.2f}/{ind['resistance_50']:.2f}"""
 
-    # 修改 prompt，要求操作思路放在第一段
     prompt = f"""你是BTC永续合约短线分析师。当前时间：{datetime.now().strftime("%H:%M:%S")}
 价格：{ticker['last']} USDT
 资金费率：{funding.get('fundingRate', 'N/A') if funding else 'N/A'}
@@ -210,8 +219,12 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 {fmt(indicators.get('15m'), '15分钟线')}
 {fmt(indicators.get('1h'), '1小时线')}
 {fmt(indicators.get('1d'), '日线')}
-请结合多周期指标和资金费率，进行简短分析（不超过250字）。
-注意：回复的第一段必须是“短线操作思路（做多/做空/观望）及风险提示”，并用【】包裹；后续再写多空力量对比和支撑压力位。"""
+请结合多周期指标和资金费率，进行简短分析（不超过250字），必须包含：
+1. 当前多空力量对比与市场情绪
+2. 关键支撑位与压力位
+3. 短线操作思路（做多/做空/观望）及风险提示
+4. 入场时机提醒
+请将第三点和第四点操作思路和入场时机提醒部分用【】包裹。"""
 
     try:
         resp = client.chat.completions.create(
@@ -225,6 +238,13 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
         analysis = f"AI分析出错: {e}"
 
     st.session_state.latest_analysis = analysis
+
+    # 提取【】中的建议内容
+    suggestion = ""
+    matches = re.findall(r'【(.*?)】', analysis)
+    if matches:
+        suggestion = " | ".join(matches)
+    st.session_state.latest_suggestion = suggestion
 
 def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
@@ -373,18 +393,22 @@ def main():
             run_analysis()
         st.rerun()
 
-    # AI 分析详情（字号正常，操作思路红色高亮）
+    # 红色建议区 - 直接放在按钮下方
+    suggestion = st.session_state.latest_suggestion
+    if suggestion:
+        st.markdown(f"""
+        <div class="suggestion-box">
+            <span style="color:#DB4437; font-weight:bold; font-size:0.95rem;">📌 {suggestion}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # AI 分析详情（字号正常）
     st.markdown("<div class='small-title'>🤖 AI 分析详情</div>", unsafe_allow_html=True)
     analysis = st.session_state.latest_analysis
-    if "【" in analysis and "】" in analysis:
-        parts = re.split(r'(【.*?】)', analysis)
-        html_parts = []
-        for part in parts:
-            if part.startswith('【') and part.endswith('】'):
-                html_parts.append(f"<span style='color:red;font-weight:bold'>{part[1:-1]}</span>")
-            else:
-                html_parts.append(part.replace('\n', '<br>'))
-        st.markdown("".join(html_parts), unsafe_allow_html=True)
+    # 移除【】中的内容，正常显示其余部分
+    clean_analysis = re.sub(r'【.*?】', '', analysis)
+    if clean_analysis.strip():
+        st.markdown(clean_analysis.replace('\n', '<br>'), unsafe_allow_html=True)
     else:
         st.markdown(analysis.replace('\n', '<br>'), unsafe_allow_html=True)
 
