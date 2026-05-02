@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 # ==================== 配置区 ====================
 DEEPSEEK_API_KEY = st.secrets["DEEPSEEK_API_KEY"]
 SYMBOL = "BTC-USDT-SWAP"
-REFRESH_INTERVAL = 3                 # 数据刷新间隔：1秒
+REFRESH_INTERVAL = 1                 # 数据刷新间隔：1秒
 
 BASE_URL = "https://api.deepseek.com"
 OKX_TICKER_URL = "https://www.okx.com/api/v5/market/ticker"
@@ -104,7 +104,8 @@ def get_candles(bar="15m", limit=100):
     try:
         resp = requests.get(f"{OKX_CANDLES_URL}?instId={SYMBOL}&bar={bar}&limit={limit}", timeout=10)
         data = resp.json()
-        if data.get("code") == "0"):
+        # 修复：去掉多余的 ) 括号
+        if data.get("code") == "0":
             return data["data"]
     except:
         pass
@@ -213,7 +214,8 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 1. 当前多空力量对比与市场情绪
 2. 关键支撑位与压力位
 3. 短线操作思路（做多/做空/观望）及风险提示
-请将第三点操作思路部分用【】包裹。"""
+4. 入场时机提醒
+请将第三点和第四点操作思路和入场时机提醒部分用【】包裹。"""
 
     try:
         resp = client.chat.completions.create(
@@ -344,10 +346,9 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # 资金费率（转换为百分数显示）
+    # 资金费率（百分数显示）
     if funding:
         funding_rate = funding.get('fundingRate', 'N/A')
-        # 尝试转换为百分数
         try:
             rate_float = float(funding_rate) * 100
             funding_rate_pct = f"{rate_float:.4f}%"
