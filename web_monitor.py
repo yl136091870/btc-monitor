@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 # ==================== 配置区 ====================
 DEEPSEEK_API_KEY = st.secrets["DEEPSEEK_API_KEY"]
 SYMBOL = "BTC-USDT-SWAP"
-REFRESH_INTERVAL = 10
+REFRESH_INTERVAL = 1                 # 数据刷新间隔：1秒
 
 BASE_URL = "https://api.deepseek.com"
 OKX_TICKER_URL = "https://www.okx.com/api/v5/market/ticker"
@@ -21,7 +21,7 @@ OKX_CANDLES_URL = "https://www.okx.com/api/v5/market/candles"
 client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=BASE_URL)
 
 if "latest_analysis" not in st.session_state:
-    st.session_state.latest_analysis = "点击上方按钮开始分析"
+    st.session_state.latest_analysis = "点击“deepseek分析”按钮查看结果"
 if "latest_suggestion" not in st.session_state:
     st.session_state.latest_suggestion = ""
 if "indicators" not in st.session_state:
@@ -36,8 +36,8 @@ st.markdown("""
     }
     .stButton button {
         width: auto !important;
-        min-width: 90px;
-        padding: 0.2rem 0.6rem;
+        min-width: 100px;
+        padding: 0.2rem 0.8rem;
         font-weight: bold;
     }
     .small-title {
@@ -49,10 +49,11 @@ st.markdown("""
     .price-large {
         font-size: 2rem;
         font-weight: bold;
+        color: white;
     }
     .price-label {
         font-size: 0.7rem;
-        color: gray;
+        color: white;
         margin-bottom: 0.1rem;
     }
     .data-row {
@@ -77,6 +78,11 @@ st.markdown("""
         font-size: 0.7rem;
         color: gray;
         margin-top: 0.1rem;
+    }
+    .btn-right {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 0.5rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -178,6 +184,7 @@ def compute_indicators(candles, label=""):
     }
 
 def run_analysis():
+    """手动触发时的完整AI分析"""
     ticker = get_ticker()
     funding = get_funding_rate()
     if not ticker:
@@ -238,23 +245,24 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
     
-    # ---------- 标题行：标题 + deepseek分析按钮 ----------
-    col_title, col_btn = st.columns([7, 2])
-    with col_title:
-        st.markdown("<h4 style='margin:0; white-space:nowrap;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
-    with col_btn:
-        if st.button("deepseek分析", key="ai_btn"):
-            with st.spinner("分析中..."):
-                run_analysis()
-            st.rerun()
-    
+    # 标题
+    st.markdown("<h4 style='margin:0; white-space:nowrap;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
     st.caption("温馨提示：本页面仅用于AI交流学习，不构成任何投资建议。")
 
-    # ---------- 短线建议置顶 ----------
+    # 手动分析按钮
+    st.markdown('<div class="btn-right">', unsafe_allow_html=True)
+    if st.button("deepseek分析", key="ai_btn"):
+        with st.spinner("分析中..."):
+            run_analysis()
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 置顶AI建议
     suggestion = st.session_state.latest_suggestion
     if suggestion:
         st.markdown(f"<div style='color:#DB4437; font-weight:bold; margin-bottom:0.3rem;'>{suggestion}</div>", unsafe_allow_html=True)
 
+    # 获取数据
     ticker = get_ticker()
     funding = get_funding_rate()
     if not ticker:
@@ -264,20 +272,19 @@ def main():
 
     current_price = float(ticker["last"])
 
-    # ====== 24h涨跌（北京时间0点开盘价） ======
-    change_24h = 0.0
+    # 涨跌计算（保持逻辑不变，但只用于显示）
+    change_daily = 0.0
     daily_kline = get_candles("1D", 1)
     if daily_kline and len(daily_kline) > 0:
         try:
             open_beijing = float(daily_kline[0][1])
             if open_beijing > 0:
-                change_24h = (current_price - open_beijing) / open_beijing * 100
+                change_daily = (current_price - open_beijing) / open_beijing * 100
         except:
-            change_24h = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
+            change_daily = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
     else:
-        change_24h = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
+        change_daily = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
 
-    # 昨日涨跌
     change_yesterday = 0.0
     daily_candles = get_candles("1D", 2)
     if daily_candles and len(daily_candles) >= 2:
@@ -294,7 +301,7 @@ def main():
     vol_btc = float(ticker.get("volCcy24h", 0))
     volume_usdt = vol_btc * current_price
 
-    # 数据获取时间（北京时间，带年月日）
+    # 时间显示
     ticker_ts = ticker.get("ts", "")
     if ticker_ts:
         try:
@@ -306,7 +313,7 @@ def main():
     else:
         update_time = (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
 
-    # ---------- 当前价格居中 ----------
+    # 当前价格
     st.markdown(f"""
     <div style="margin-bottom:0.5rem; text-align: center;">
         <div class="price-label">当前价格</div>
@@ -315,7 +322,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------- 24h最高 / 24h最低 ----------
+    # 24h最高/最低
     st.markdown(f"""
     <div class="data-row">
         <div class="data-item">
@@ -329,7 +336,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------- 涨跌行 ----------
+    # 涨跌行
     def color_str(val):
         if val > 0: return f'<span style="color:#DB4437;">+{val:.2f}%</span>'
         elif val < 0: return f'<span style="color:#0F9D58;">{val:.2f}%</span>'
@@ -338,8 +345,8 @@ def main():
     st.markdown(f"""
     <div class="data-row">
         <div class="data-item">
-            <div class="data-label">24h涨跌</div>
-            <div class="data-value">{color_str(change_24h)}</div>
+            <div class="data-label">当日涨跌</div>
+            <div class="data-value">{color_str(change_daily)}</div>
         </div>
         <div class="data-item">
             <div class="data-label">昨日涨跌</div>
@@ -348,7 +355,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------- 量额行（万 / 亿） ----------
+    # 量额行
     vol_btc_wan = vol_btc / 10000
     volume_usdt_yi = volume_usdt / 100000000
     st.markdown(f"""
@@ -364,7 +371,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # 资金费率（包括下次结算转换为北京时间）
+    # 资金费率
     if funding:
         funding_rate = funding.get('fundingRate', 'N/A')
         next_time_str = ""
@@ -381,7 +388,7 @@ def main():
         else:
             st.caption(f"💰 资金费率: {funding_rate}")
 
-    # ---------- 技术指标 ----------
+    # 技术指标
     inds = st.session_state.indicators
     if inds:
         st.markdown("<div class='small-title'>📊 技术指标</div>", unsafe_allow_html=True)
@@ -400,7 +407,7 @@ def main():
     else:
         st.caption("技术指标将在首次分析后显示")
 
-    # ---------- AI 分析详细结果 ----------
+    # AI 分析详情
     st.markdown("<div class='small-title'>🤖 AI 分析详情</div>", unsafe_allow_html=True)
     analysis = st.session_state.latest_analysis
     st.markdown(f"<small>{analysis.replace(chr(10), '<br>')}</small>", unsafe_allow_html=True)
