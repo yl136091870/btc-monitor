@@ -217,13 +217,22 @@ def main():
     vol_btc = float(ticker.get("volCcy24h", 0))
 
     # ---------- 第一行：当前价格、24h最高、24h最低（统一字体大小） ----------
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("当前价格", f"{current_price:.2f}")
-    with col2:
-        st.metric("24h最高", ticker["high24h"])
-    with col3:
-        st.metric("24h最低", ticker["low24h"])
+    st.markdown(f"""
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:0.8rem;">
+    <div style="line-height:1.2">
+        <span style="font-size:0.7rem; color:gray;">当前价格</span><br>
+        <span style="font-size:1.3rem; font-weight:bold;">{current_price:.2f}</span>
+    </div>
+    <div style="line-height:1.2; text-align:center">
+        <span style="font-size:0.7rem; color:gray;">24h最高</span><br>
+        <span style="font-size:1.3rem; font-weight:bold;">{ticker['high24h']}</span>
+    </div>
+    <div style="line-height:1.2; text-align:right">
+        <span style="font-size:0.7rem; color:gray;">24h最低</span><br>
+        <span style="font-size:1.3rem; font-weight:bold;">{ticker['low24h']}</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
     # ---------- 第二行：24h涨跌、当日涨跌 ----------
     col4, col5 = st.columns(2)
