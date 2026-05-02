@@ -10,7 +10,7 @@ from datetime import datetime
 # ==================== 配置区 ====================
 DEEPSEEK_API_KEY = st.secrets["DEEPSEEK_API_KEY"]
 SYMBOL = "BTC-USDT-SWAP"
-REFRESH_INTERVAL = 10  # 价格刷新间隔（秒）
+REFRESH_INTERVAL = 10
 
 BASE_URL = "https://api.deepseek.com"
 OKX_TICKER_URL = "https://www.okx.com/api/v5/market/ticker"
@@ -20,22 +20,23 @@ OKX_CANDLES_URL = "https://www.okx.com/api/v5/market/candles"
 
 client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=BASE_URL)
 
-# 初始化 session_state
 if "latest_analysis" not in st.session_state:
     st.session_state.latest_analysis = "点击下方按钮开始分析"
 if "indicators" not in st.session_state:
     st.session_state.indicators = None
 
-# 手机端紧凑样式
+# ---------- 手机端紧凑样式 ----------
 st.markdown("""
-    <style>
-        .block-container { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-        .css-18e3th9 { padding-top: 0rem; }
-        .css-1d391kg { padding-top: 0.5rem; }
-        .stButton button { width: 100%; font-weight: bold; }
-    </style>
+<style>
+    .block-container { padding-top: 0.2rem; padding-bottom: 0.2rem; }
+    .stButton button { width: 100%; font-weight: bold; }
+    .small-font { font-size: 0.8rem; }
+    h3 { padding-top: 0.5rem; margin-bottom: 0.2rem; }
+    hr { margin: 0.2rem 0; }
+</style>
 """, unsafe_allow_html=True)
 
+# ---------- 数据获取函数 ----------
 def get_ticker():
     try:
         resp = requests.get(f"{OKX_TICKER_URL}?instId={SYMBOL}", timeout=10)
@@ -186,7 +187,10 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 
 def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
-    st.title("📈 BTC永续合约")
+    
+    # ---------- 小标题 + 温馨提示 ----------
+    st.markdown("<h3 style='margin-bottom:0.2rem;'>📈 BTC永续合约</h3>", unsafe_allow_html=True)
+    st.caption("温馨提示：本页面仅用于AI交流学习，不构成任何投资建议。")
 
     ticker = get_ticker()
     funding = get_funding_rate()
@@ -198,56 +202,70 @@ def main():
     current_price = float(ticker["last"])
     change_24h = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
 
-    # 当日涨跌（基于 UTC0 开盘价）
+    # 当日涨跌
     sod_utc0 = float(ticker.get("sodUtc0", 0))
     change_today = 0.0
     if sod_utc0 > 0:
         change_today = (current_price - sod_utc0) / sod_utc0 * 100
 
-    # 24小时成交量（以 BTC 为单位）
+    # 成交量（BTC）
     vol_btc = float(ticker.get("volCcy24h", 0))
 
-    # ===== 价格卡片（紧凑布局）=====
-    c1, c2, c3 = st.columns(3)
-
-    # 当前价格 + 24h 最高最低
-    c1.markdown(f"""
-    <div style="margin-bottom:0.2rem; line-height:1.2">
-        <span style="font-size:0.75rem; color:gray;">当前价格</span><br>
-        <span style="font-size:1.6rem; font-weight:bold;">{current_price:.2f}</span>
-        <span style="font-size:0.7rem; color:gray; margin-left:0.5rem;">H:{ticker['high24h']} L:{ticker['low24h']}</span>
+    # ---------- 第一行：当前价格、24h最高、24h最低 ----------
+    col1, col2, col3 = st.columns(3)
+    price_html = """
+    <div style="line-height:1.2">
+        <span style="font-size:0.7rem; color:gray;">当前价格</span><br>
+        <span style="font-size:1.3rem; font-weight:bold;">{price:.2f}</span>
     </div>
-    """, unsafe_allow_html=True)
+    """
+    high_html = """
+    <div style="line-height:1.2">
+        <span style="font-size:0.7rem; color:gray;">24h最高</span><br>
+        <span style="font-size:1.1rem; font-weight:bold;">{high}</span>
+    </div>
+    """
+    low_html = """
+    <div style="line-height:1.2">
+        <span style="font-size:0.7rem; color:gray;">24h最低</span><br>
+        <span style="font-size:1.1rem; font-weight:bold;">{low}</span>
+    </div>
+    """
+    col1.markdown(price_html.format(price=current_price), unsafe_allow_html=True)
+    col2.markdown(high_html.format(high=ticker["high24h"]), unsafe_allow_html=True)
+    col3.markdown(low_html.format(low=ticker["low24h"]), unsafe_allow_html=True)
 
-    # 涨跌幅（24h 和 当日）
-    c2.metric("24h涨跌", f"{change_24h:+.2f}%")
-    c2.caption(f"当日涨跌: {change_today:+.2f}%")
+    # ---------- 第二行：24h涨跌、当日涨跌 ----------
+    col4, col5 = st.columns(2)
+    col4.metric("24h涨跌", f"{change_24h:+.2f}%")
+    col5.metric("当日涨跌", f"{change_today:+.2f}%")
 
-    # 成交量（BTC）
-    c3.metric("24h量(BTC)", f"{vol_btc:.2f}")
-
-    # 资金费率
+    # ---------- 第三行：成交量 + 资金费率 ----------
+    col6, col7 = st.columns([1, 2])
+    col6.metric("24h量(BTC)", f"{vol_btc:.2f}")
     if funding:
-        st.caption(f"💰 资金费率: {funding.get('fundingRate','N/A')} | 下次结算: {funding.get('nextFundingTime','N/A')}")
+        col7.caption(f"💰 资金费率: {funding.get('fundingRate','N/A')} | 下次结算: {funding.get('nextFundingTime','N/A')}")
 
-    # ===== 技术指标 =====
+    # ---------- 技术指标（默认展示，但需要推送过数据才显示） ----------
     inds = st.session_state.indicators
     if inds:
-        st.subheader("📊 技术指标")
-        col1, col2 = st.columns(2)
+        st.markdown("##### 📊 技术指标")
+        col_a, col_b = st.columns(2)
         if "15m" in inds:
-            col1.markdown(f"**15分钟线**：MA5={inds['15m']['MA5']:.2f} MA20={inds['15m']['MA20']:.2f} MACD={inds['15m']['MACD']:.2f}")
-            col1.markdown(f"KDJ: K={inds['15m']['K']:.2f} D={inds['15m']['D']:.2f} J={inds['15m']['J']:.2f} RSI={inds['15m']['RSI']:.2f}")
-            col1.markdown(f"撑压(20/50)：{inds['15m']['support_20']:.2f}/{inds['15m']['resistance_20']:.2f} | {inds['15m']['support_50']:.2f}/{inds['15m']['resistance_50']:.2f}")
+            col_a.markdown("<small><b>15分钟线</b>：MA5={MA5:.2f} MA20={MA20:.2f} MACD={MACD:.2f}</small>".format(**inds['15m']), unsafe_allow_html=True)
+            col_a.markdown("<small>KDJ: K={K:.2f} D={D:.2f} J={J:.2f} RSI={RSI:.2f}</small>".format(**inds['15m']), unsafe_allow_html=True)
+            col_a.markdown("<small>撑压(20/50)：{support_20:.2f}/{resistance_20:.2f} | {support_50:.2f}/{resistance_50:.2f}</small>".format(**inds['15m']), unsafe_allow_html=True)
         if "1h" in inds:
-            col2.markdown(f"**1小时线**：MA5={inds['1h']['MA5']:.2f} MA20={inds['1h']['MA20']:.2f} 趋势={inds['1h']['trend']}")
-            col2.markdown(f"撑压(50)：{inds['1h']['support_50']:.2f}/{inds['1h']['resistance_50']:.2f}")
+            col_b.markdown("<small><b>1小时线</b>：MA5={MA5:.2f} MA20={MA20:.2f} 趋势={trend}</small>".format(**inds['1h']), unsafe_allow_html=True)
+            col_b.markdown("<small>撑压(50)：{support_50:.2f}/{resistance_50:.2f}</small>".format(**inds['1h']), unsafe_allow_html=True)
         if "5m" in inds:
-            col2.markdown(f"**5分钟线**：趋势={inds['5m']['trend']} 成交量MA5={inds['5m']['VOL_MA5']:.2f} RSI={inds['5m']['RSI']:.2f}")
+            col_b.markdown("<small><b>5分钟线</b>：趋势={trend} 成交量MA5={VOL_MA5:.2f} RSI={RSI:.2f}</small>".format(**inds['5m']), unsafe_allow_html=True)
         if "1d" in inds:
-            col1.markdown(f"**日线**：MA5={inds['1d']['MA5']:.2f} MA20={inds['1d']['MA20']:.2f} 趋势={inds['1d']['trend']}")
+            col_a.markdown("<small><b>日线</b>：MA5={MA5:.2f} MA20={MA20:.2f} 趋势={trend}</small>".format(**inds['1d']), unsafe_allow_html=True)
+    else:
+        st.caption("技术指标将在首次分析后显示")
 
-    # ===== AI 分析按钮与结果 =====
+    # ---------- AI 分析按钮与结果 ----------
     st.subheader("🤖 AI 短线分析")
     if st.button("🔍 手动触发 AI 分析", use_container_width=True):
         with st.spinner("分析中..."):
