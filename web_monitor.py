@@ -36,13 +36,6 @@ st.markdown("""
     .stButton button { width: 100%; font-weight: bold; }
     h3 { padding-top: 0.3rem; margin-bottom: 0.2rem; }
     hr { margin: 0.2rem 0; }
-    /* 统一所有 metric 数值大小 */
-    .stMetric {
-        font-size: 1.3rem !important;
-    }
-    .stMetric label {
-        font-size: 0.8rem !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -212,32 +205,74 @@ def main():
     current_price = float(ticker["last"])
     change_24h = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
 
+    # 当日涨跌（基于今日UTC0开盘价）
     sod_utc0 = float(ticker.get("sodUtc0", 0))
     change_today = (current_price - sod_utc0) / sod_utc0 * 100 if sod_utc0 != 0 else 0.0
+
+    # 昨日涨跌（从日K线计算）
+    change_yesterday = 0.0
+    daily_candles = get_candles("1D", 2)  # 获取最近两根日K线
+    if daily_candles and len(daily_candles) >= 2:
+        cols = ["ts", "open", "high", "low", "close", "vol", "volCcy", "volCcyQuote", "confirm"]
+        # OKX 返回的K线从新到旧，先转换为DataFrame再排序
+        df_daily = pd.DataFrame(daily_candles, columns=cols)
+        for col in ["open", "high", "low", "close", "vol", "volCcy"]:
+            df_daily[col] = pd.to_numeric(df_daily[col], errors="coerce")
+        df_daily = df_daily.sort_values("ts", ascending=True)  # 正序
+        if len(df_daily) >= 2:
+            yesterday = df_daily.iloc[-2]  # 倒数第二根是昨日
+            yesterday_open = yesterday["open"]
+            yesterday_close = yesterday["close"]
+            if yesterday_open > 0:
+                change_yesterday = (yesterday_close - yesterday_open) / yesterday_open * 100
+
+    # 成交量（BTC）
     vol_btc = float(ticker.get("volCcy24h", 0))
 
-    # ---------- 第一行：当前价格、24h最高、24h最低（统一字体大小） ----------
+    # ---------- 第一行：当前价格、24h最高、24h最低 ----------
     st.markdown(f"""
-<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:0.8rem;">
-    <div style="line-height:1.2">
-        <span style="font-size:0.7rem; color:gray;">当前价格</span><br>
-        <span style="font-size:1.3rem; font-weight:bold;">{current_price:.2f}</span>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:0.8rem;">
+        <div style="line-height:1.2">
+            <span style="font-size:0.7rem; color:gray;">当前价格</span><br>
+            <span style="font-size:1.3rem; font-weight:bold;">{current_price:.2f}</span>
+        </div>
+        <div style="line-height:1.2; text-align:center">
+            <span style="font-size:0.7rem; color:gray;">24h最高</span><br>
+            <span style="font-size:1.3rem; font-weight:bold;">{ticker['high24h']}</span>
+        </div>
+        <div style="line-height:1.2; text-align:right">
+            <span style="font-size:0.7rem; color:gray;">24h最低</span><br>
+            <span style="font-size:1.3rem; font-weight:bold;">{ticker['low24h']}</span>
+        </div>
     </div>
-    <div style="line-height:1.2; text-align:center">
-        <span style="font-size:0.7rem; color:gray;">24h最高</span><br>
-        <span style="font-size:1.3rem; font-weight:bold;">{ticker['high24h']}</span>
-    </div>
-    <div style="line-height:1.2; text-align:right">
-        <span style="font-size:0.7rem; color:gray;">24h最低</span><br>
-        <span style="font-size:1.3rem; font-weight:bold;">{ticker['low24h']}</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-    # ---------- 第二行：24h涨跌、当日涨跌 ----------
-    col4, col5 = st.columns(2)
-    col4.metric("24h涨跌", f"{change_24h:+.2f}%")
-    col5.metric("当日涨跌", f"{change_today:+.2f}%")
+    # ---------- 第二行：当日涨跌、昨日涨跌、24h涨跌（同一行）----------
+    # 根据正负值设置颜色
+    def color_str(val):
+        if val > 0:
+            return f'<span style="color:#0F9D58;">+{val:.2f}%</span>'
+        elif val < 0:
+            return f'<span style="color:#DB4437;">{val:.2f}%</span>'
+        else:
+            return f'<span style="color:gray;">0.00%</span>'
+
+    st.markdown(f"""
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:0.8rem;">
+        <div style="line-height:1.2">
+            <span style="font-size:0.7rem; color:gray;">当日涨跌</span><br>
+            <span style="font-size:1.3rem; font-weight:bold;">{color_str(change_today)}</span>
+        </div>
+        <div style="line-height:1.2; text-align:center">
+            <span style="font-size:0.7rem; color:gray;">昨日涨跌</span><br>
+            <span style="font-size:1.3rem; font-weight:bold;">{color_str(change_yesterday)}</span>
+        </div>
+        <div style="line-height:1.2; text-align:right">
+            <span style="font-size:0.7rem; color:gray;">24h涨跌</span><br>
+            <span style="font-size:1.3rem; font-weight:bold;">{color_str(change_24h)}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # ---------- 第三行：成交量 + 资金费率 ----------
     col6, col7 = st.columns([1, 2])
