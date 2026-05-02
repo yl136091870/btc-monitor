@@ -27,32 +27,47 @@ if "latest_suggestion" not in st.session_state:
 if "indicators" not in st.session_state:
     st.session_state.indicators = None
 
-# ---------- 紧凑样式 + 顶部留空 ----------
+# ---------- 全局样式：黑色背景 + 白色内容 + 紧凑布局 ----------
 st.markdown("""
 <style>
+    /* 全局背景 */
+    .stApp {
+        background-color: black;
+    }
     .block-container {
         padding-top: 3.5rem !important;
         padding-bottom: 0.2rem !important;
+        background-color: black;
     }
+    /* 按钮 */
     .stButton button {
         width: 100% !important;
         padding: 0.2rem 0.8rem;
         font-weight: bold;
+        background-color: #333333;
+        color: white;
+        border: 1px solid #555555;
     }
+    /* 小标题 */
     .small-title {
         font-size: 0.9rem;
         font-weight: bold;
         margin-top: 0.6rem;
         margin-bottom: 0.2rem;
+        color: white;
     }
+    /* 当前价格 */
     .price-large {
         font-size: 2rem;
         font-weight: bold;
+        color: white;
     }
     .price-label {
         font-size: 0.7rem;
+        color: white;
         margin-bottom: 0.1rem;
     }
+    /* 数据行 */
     .data-row {
         display: flex;
         justify-content: space-around;
@@ -65,24 +80,30 @@ st.markdown("""
     }
     .data-label {
         font-size: 0.7rem;
-        color: gray;
+        color: #bbbbbb;
     }
     .data-value {
         font-size: 1.3rem;
         font-weight: bold;
+        color: white;
     }
     .time-text {
         font-size: 0.7rem;
-        color: gray;
+        color: #aaaaaa;
         margin-top: 0.1rem;
     }
+    /* 建议框 */
     .suggestion-box {
-        background-color: #2e2e2e;
+        background-color: #1a1a1a;
         border-left: 4px solid #DB4437;
         padding: 0.5rem;
         margin-top: 0.5rem;
         margin-bottom: 0.5rem;
         border-radius: 4px;
+    }
+    /* markdown 文字调整为浅色 */
+    .small-font, .stMarkdown p, .stCaption {
+        color: #dddddd !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -247,7 +268,7 @@ def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
     
     # 标题
-    st.markdown("<h4 style='margin:0; white-space:nowrap;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='margin:0; white-space:nowrap; color:white;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
     st.caption("温馨提示：本页面仅用于AI交流学习，不构成任何投资建议。")
 
     # 获取数据
@@ -301,19 +322,11 @@ def main():
     else:
         update_time = (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
 
-    # 根据当日涨跌确定当前价格的颜色
-    if change_daily > 0:
-        price_color = "#DB4437"  # 涨红色
-    elif change_daily < 0:
-        price_color = "#0F9D58"  # 跌绿色
-    else:
-        price_color = "#FFFFFF"  # 平盘白色
-
-    # 当前价格（动态颜色）
+    # 当前价格（固定白色）
     st.markdown(f"""
     <div style="margin-bottom:0.5rem; text-align: center;">
-        <div class="price-label" style="color:{price_color};">当前价格</div>
-        <div class="price-large" style="color:{price_color};">{current_price:.2f} USDT</div>
+        <div class="price-label">当前价格</div>
+        <div class="price-large">{current_price:.2f} USDT</div>
         <div class="time-text">数据获取时间：{update_time}</div>
     </div>
     """, unsafe_allow_html=True)
