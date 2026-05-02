@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 # ==================== 配置区 ====================
 DEEPSEEK_API_KEY = st.secrets["DEEPSEEK_API_KEY"]
 SYMBOL = "BTC-USDT-SWAP"
-REFRESH_INTERVAL = 1                 # 数据刷新间隔：1秒
+REFRESH_INTERVAL = 3                 # 数据刷新间隔：1秒
 
 BASE_URL = "https://api.deepseek.com"
 OKX_TICKER_URL = "https://www.okx.com/api/v5/market/ticker"
