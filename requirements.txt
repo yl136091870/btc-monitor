@@ -1,0 +1,6 @@
+streamlit
+pandas
+numpy
+pandas-ta
+openai
+requests
