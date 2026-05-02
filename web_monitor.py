@@ -36,8 +36,8 @@ st.markdown("""
     }
     .stButton button {
         width: auto !important;
-        min-width: 80px;
-        padding: 0.2rem 0.8rem;
+        min-width: 90px;
+        padding: 0.2rem 0.6rem;
         font-weight: bold;
     }
     .small-title {
@@ -238,13 +238,12 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
     
-    # ---------- 标题行：标题 + AI分析按钮（并排）----------
-    # 调整列比例为7:2，确保按钮有足够空间且紧贴标题
+    # ---------- 标题行：标题 + deepseek分析按钮 ----------
     col_title, col_btn = st.columns([7, 2])
     with col_title:
         st.markdown("<h4 style='margin:0; white-space:nowrap;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
     with col_btn:
-        if st.button("AI分析", key="ai_btn"):
+        if st.button("deepseek分析", key="ai_btn"):
             with st.spinner("分析中..."):
                 run_analysis()
             st.rerun()
@@ -295,17 +294,17 @@ def main():
     vol_btc = float(ticker.get("volCcy24h", 0))
     volume_usdt = vol_btc * current_price
 
-    # 数据获取时间（北京时间）
+    # 数据获取时间（北京时间，带年月日）
     ticker_ts = ticker.get("ts", "")
     if ticker_ts:
         try:
             utc_time = datetime.utcfromtimestamp(int(ticker_ts) / 1000)
             beijing_time = utc_time + timedelta(hours=8)
-            update_time = beijing_time.strftime("%H:%M:%S")
+            update_time = beijing_time.strftime("%Y-%m-%d %H:%M:%S")
         except:
-            update_time = (datetime.utcnow() + timedelta(hours=8)).strftime("%H:%M:%S")
+            update_time = (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
     else:
-        update_time = (datetime.utcnow() + timedelta(hours=8)).strftime("%H:%M:%S")
+        update_time = (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
 
     # ---------- 当前价格居中 ----------
     st.markdown(f"""
@@ -349,7 +348,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------- 量额行（万 / 亿单位）----------
+    # ---------- 量额行（万 / 亿） ----------
     vol_btc_wan = vol_btc / 10000
     volume_usdt_yi = volume_usdt / 100000000
     st.markdown(f"""
@@ -365,9 +364,22 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # 资金费率
+    # 资金费率（包括下次结算转换为北京时间）
     if funding:
-        st.caption(f"💰 资金费率: {funding.get('fundingRate','N/A')} | 下次结算: {funding.get('nextFundingTime','N/A')}")
+        funding_rate = funding.get('fundingRate', 'N/A')
+        next_time_str = ""
+        next_funding_ts = funding.get('nextFundingTime', '')
+        if next_funding_ts:
+            try:
+                utc_time = datetime.utcfromtimestamp(int(next_funding_ts) / 1000)
+                beijing_next = utc_time + timedelta(hours=8)
+                next_time_str = beijing_next.strftime("%Y-%m-%d %H:%M:%S")
+            except:
+                next_time_str = "转换失败"
+        if next_time_str:
+            st.caption(f"💰 资金费率: {funding_rate} | 下次结算: {next_time_str}")
+        else:
+            st.caption(f"💰 资金费率: {funding_rate}")
 
     # ---------- 技术指标 ----------
     inds = st.session_state.indicators
