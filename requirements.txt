@@ -1,6 +1,5 @@
 streamlit
 pandas
 numpy
-pandas-ta==0.3.14b0
 openai
 requests
