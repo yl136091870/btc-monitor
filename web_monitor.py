@@ -104,7 +104,6 @@ def get_candles(bar="15m", limit=100):
     try:
         resp = requests.get(f"{OKX_CANDLES_URL}?instId={SYMBOL}&bar={bar}&limit={limit}", timeout=10)
         data = resp.json()
-        # 修复：去掉多余的 ) 括号
         if data.get("code") == "0":
             return data["data"]
     except:
@@ -202,6 +201,7 @@ MACD(DIF/DEA/柱)：{ind['MACD']:.2f}/{ind['MACD_signal']:.2f}/{ind['MACD_hist']
 KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 撑压(20/50)：{ind['support_20']:.2f}/{ind['resistance_20']:.2f} | {ind['support_50']:.2f}/{ind['resistance_50']:.2f}"""
 
+    # 修改 prompt，要求操作思路放在第一段
     prompt = f"""你是BTC永续合约短线分析师。当前时间：{datetime.now().strftime("%H:%M:%S")}
 价格：{ticker['last']} USDT
 资金费率：{funding.get('fundingRate', 'N/A') if funding else 'N/A'}
@@ -210,12 +210,8 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 {fmt(indicators.get('15m'), '15分钟线')}
 {fmt(indicators.get('1h'), '1小时线')}
 {fmt(indicators.get('1d'), '日线')}
-请结合多周期指标和资金费率，进行简短分析（不超过250字），必须包含：
-1. 当前多空力量对比与市场情绪
-2. 关键支撑位与压力位
-3. 短线操作思路（做多/做空/观望）及风险提示
-4. 入场时机提醒
-请将第三点和第四点操作思路和入场时机提醒部分用【】包裹。"""
+请结合多周期指标和资金费率，进行简短分析（不超过250字）。
+注意：回复的第一段必须是“短线操作思路（做多/做空/观望）及风险提示”，并用【】包裹；后续再写多空力量对比和支撑压力位。"""
 
     try:
         resp = client.chat.completions.create(
