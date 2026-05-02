@@ -104,7 +104,7 @@ def get_candles(bar="15m", limit=100):
     try:
         resp = requests.get(f"{OKX_CANDLES_URL}?instId={SYMBOL}&bar={bar}&limit={limit}", timeout=10)
         data = resp.json()
-        if data.get("code") == "0":
+        if data.get("code") == "0"):
             return data["data"]
     except:
         pass
@@ -344,9 +344,16 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # 资金费率
+    # 资金费率（转换为百分数显示）
     if funding:
         funding_rate = funding.get('fundingRate', 'N/A')
+        # 尝试转换为百分数
+        try:
+            rate_float = float(funding_rate) * 100
+            funding_rate_pct = f"{rate_float:.4f}%"
+        except:
+            funding_rate_pct = funding_rate
+
         next_time_str = ""
         next_funding_ts = funding.get('nextFundingTime', '')
         if next_funding_ts:
@@ -357,9 +364,9 @@ def main():
             except:
                 next_time_str = "转换失败"
         if next_time_str:
-            st.caption(f"💰 资金费率: {funding_rate} | 下次结算: {next_time_str}")
+            st.caption(f"💰 资金费率: {funding_rate_pct} | 下次结算: {next_time_str}")
         else:
-            st.caption(f"💰 资金费率: {funding_rate}")
+            st.caption(f"💰 资金费率: {funding_rate_pct}")
     else:
         st.caption("💰 资金费率: 暂无数据")
 
@@ -369,10 +376,20 @@ def main():
             run_analysis()
         st.rerun()
 
-    # AI 分析详情（在上）
+    # AI 分析详情（字号正常，操作思路红色高亮）
     st.markdown("<div class='small-title'>🤖 AI 分析详情</div>", unsafe_allow_html=True)
     analysis = st.session_state.latest_analysis
-    st.markdown(f"<small>{analysis.replace(chr(10), '<br>')}</small>", unsafe_allow_html=True)
+    if "【" in analysis and "】" in analysis:
+        parts = re.split(r'(【.*?】)', analysis)
+        html_parts = []
+        for part in parts:
+            if part.startswith('【') and part.endswith('】'):
+                html_parts.append(f"<span style='color:red;font-weight:bold'>{part[1:-1]}</span>")
+            else:
+                html_parts.append(part.replace('\n', '<br>'))
+        st.markdown("".join(html_parts), unsafe_allow_html=True)
+    else:
+        st.markdown(analysis.replace('\n', '<br>'), unsafe_allow_html=True)
 
     # 技术指标（在下）
     inds = st.session_state.indicators
