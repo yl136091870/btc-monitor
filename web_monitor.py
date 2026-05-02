@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import re
 from openai import OpenAI
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ==================== 配置区 ====================
 DEEPSEEK_API_KEY = st.secrets["DEEPSEEK_API_KEY"]
@@ -282,15 +282,18 @@ def main():
     vol_btc = float(ticker.get("volCcy24h", 0))
     volume_usdt = vol_btc * current_price
 
-    # 计算数据获取时间（交易所ticker数据时间戳）
+    # 获取数据更新时间，转换为北京时间
     ticker_ts = ticker.get("ts", "")
     if ticker_ts:
         try:
-            update_time = datetime.fromtimestamp(int(ticker_ts) / 1000).strftime("%H:%M:%S")
+            # OKX的ts是毫秒时间戳，先转为UTC时间再加8小时得到北京时间
+            utc_time = datetime.utcfromtimestamp(int(ticker_ts) / 1000)
+            beijing_time = utc_time + timedelta(hours=8)
+            update_time = beijing_time.strftime("%H:%M:%S")
         except:
-            update_time = datetime.now().strftime("%H:%M:%S")
+            update_time = (datetime.utcnow() + timedelta(hours=8)).strftime("%H:%M:%S")
     else:
-        update_time = datetime.now().strftime("%H:%M:%S")
+        update_time = (datetime.utcnow() + timedelta(hours=8)).strftime("%H:%M:%S")
 
     # ---------- 当前价格居中，下方显示更新时间 ----------
     st.markdown(f"""
