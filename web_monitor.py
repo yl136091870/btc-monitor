@@ -21,7 +21,7 @@ OKX_CANDLES_URL = "https://www.okx.com/api/v5/market/candles"
 client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=BASE_URL)
 
 if "latest_analysis" not in st.session_state:
-    st.session_state.latest_analysis = "点击下方按钮开始分析"
+    st.session_state.latest_analysis = "点击上方按钮开始分析"
 if "latest_suggestion" not in st.session_state:
     st.session_state.latest_suggestion = ""
 if "indicators" not in st.session_state:
@@ -39,6 +39,16 @@ st.markdown("""
         font-size: 0.9rem;
         font-weight: bold;
         margin-top: 0.6rem;
+        margin-bottom: 0.2rem;
+    }
+    .price-large {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    .header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         margin-bottom: 0.2rem;
     }
 </style>
@@ -193,7 +203,6 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 
     st.session_state.latest_analysis = analysis
 
-    # 提取【】中的短线建议
     suggestion = ""
     match = re.search(r'【(.*?)】', analysis)
     if match:
@@ -203,14 +212,25 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
     
-    # ---------- 小标题 + 温馨提示 ----------
-    st.markdown("<h4 style='margin-top:0; margin-bottom:0.1rem;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
+    # ---------- 顶部标题行：标题 + AI分析按钮 ----------
+    st.markdown("""
+    <div class="header-row">
+        <h4 style='margin:0;'>📈 BTC永续合约</h4>
+        <div style='width:120px;'>
+    """, unsafe_allow_html=True)
+    # 按钮放在同一行的右侧
+    if st.button("AI分析", use_container_width=True):
+        with st.spinner("分析中..."):
+            run_analysis()
+        st.rerun()
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
     st.caption("温馨提示：本页面仅用于AI交流学习，不构成任何投资建议。")
 
-    # ---------- 短线建议（直接显示在温馨提示下方）----------
+    # ---------- 短线建议置顶 ----------
     suggestion = st.session_state.latest_suggestion
     if suggestion:
-        st.markdown(f"<div style='color:#DB4437; font-weight:bold; margin-bottom:0.5rem;'>{suggestion}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='color:#DB4437; font-weight:bold; margin-bottom:0.3rem;'>{suggestion}</div>", unsafe_allow_html=True)
 
     ticker = get_ticker()
     funding = get_funding_rate()
@@ -239,14 +259,13 @@ def main():
     vol_btc = float(ticker.get("volCcy24h", 0))
     volume_usdt = vol_btc * current_price
 
-    # ---------- 第一行：当前价格、24h最高、24h最低 ----------
+    # ---------- 当前价格单独一行，大号数字 ----------
+    st.markdown(f'<div class="price-large" style="margin-bottom:0.5rem;">{current_price:.2f} USDT</div>', unsafe_allow_html=True)
+
+    # ---------- 第一行小数据：24h最高、24h最低 ----------
     st.markdown(f"""
-    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:0.8rem;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:0.8rem;">
         <div style="line-height:1.2">
-            <span style="font-size:0.7rem; color:gray;">当前价格</span><br>
-            <span style="font-size:1.3rem; font-weight:bold;">{current_price:.2f}</span>
-        </div>
-        <div style="line-height:1.2; text-align:center">
             <span style="font-size:0.7rem; color:gray;">24h最高</span><br>
             <span style="font-size:1.3rem; font-weight:bold;">{ticker['high24h']}</span>
         </div>
@@ -257,14 +276,14 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------- 第二行：涨跌（涨红跌绿） ----------
+    # ---------- 涨跌行 ----------
     def color_str(val):
         if val > 0: return f'<span style="color:#DB4437;">+{val:.2f}%</span>'
         elif val < 0: return f'<span style="color:#0F9D58;">{val:.2f}%</span>'
         else: return '<span style="color:gray;">0.00%</span>'
 
     st.markdown(f"""
-    <div style="display:flex; justify-content:space-around; align-items:flex-end; margin-bottom:0.8rem;">
+    <div style="display:flex; justify-content:space-around; margin-bottom:0.8rem;">
         <div style="line-height:1.2; text-align:center">
             <span style="font-size:0.7rem; color:gray;">24h涨跌</span><br>
             <span style="font-size:1.3rem; font-weight:bold;">{color_str(change_24h)}</span>
@@ -276,9 +295,9 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------- 第三行：成交量 + 成交额 ----------
+    # ---------- 量额行 ----------
     st.markdown(f"""
-    <div style="display:flex; justify-content:space-around; align-items:flex-end; margin-bottom:0.8rem;">
+    <div style="display:flex; justify-content:space-around; margin-bottom:0.8rem;">
         <div style="line-height:1.2; text-align:center">
             <span style="font-size:0.7rem; color:gray;">24h量(BTC)</span><br>
             <span style="font-size:1.3rem; font-weight:bold;">{vol_btc:.2f}</span>
@@ -313,15 +332,9 @@ def main():
     else:
         st.caption("技术指标将在首次分析后显示")
 
-    # ---------- AI 分析按钮与结果 ----------
-    st.markdown("<div class='small-title'>🤖 AI 短线分析</div>", unsafe_allow_html=True)
-    if st.button("🔍 手动触发 AI 分析", use_container_width=True):
-        with st.spinner("分析中..."):
-            run_analysis()
-        st.rerun()
-
+    # ---------- AI 分析详细结果 ----------
+    st.markdown("<div class='small-title'>🤖 AI 分析详情</div>", unsafe_allow_html=True)
     analysis = st.session_state.latest_analysis
-    # 显示分析结果（不再重复显示建议，已提至顶部）
     st.markdown(f"<small>{analysis.replace(chr(10), '<br>')}</small>", unsafe_allow_html=True)
 
     time.sleep(REFRESH_INTERVAL)
