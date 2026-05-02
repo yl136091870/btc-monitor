@@ -48,11 +48,9 @@ st.markdown("""
     .price-large {
         font-size: 2rem;
         font-weight: bold;
-        color: white;
     }
     .price-label {
         font-size: 0.7rem;
-        color: white;
         margin-bottom: 0.1rem;
     }
     .data-row {
@@ -239,7 +237,6 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 
     st.session_state.latest_analysis = analysis
 
-    # 提取【】中的建议内容
     suggestion = ""
     matches = re.findall(r'【(.*?)】', analysis)
     if matches:
@@ -304,11 +301,19 @@ def main():
     else:
         update_time = (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
 
-    # 当前价格
+    # 根据当日涨跌确定当前价格的颜色
+    if change_daily > 0:
+        price_color = "#DB4437"  # 涨红色
+    elif change_daily < 0:
+        price_color = "#0F9D58"  # 跌绿色
+    else:
+        price_color = "#FFFFFF"  # 平盘白色
+
+    # 当前价格（动态颜色）
     st.markdown(f"""
     <div style="margin-bottom:0.5rem; text-align: center;">
-        <div class="price-label">当前价格</div>
-        <div class="price-large">{current_price:.2f} USDT</div>
+        <div class="price-label" style="color:{price_color};">当前价格</div>
+        <div class="price-large" style="color:{price_color};">{current_price:.2f} USDT</div>
         <div class="time-text">数据获取时间：{update_time}</div>
     </div>
     """, unsafe_allow_html=True)
@@ -387,13 +392,13 @@ def main():
     else:
         st.caption("💰 资金费率: 暂无数据")
 
-    # deepseek分析按钮（居中，占满行）
+    # deepseek分析按钮
     if st.button("deepseek分析", use_container_width=True):
         with st.spinner("分析中..."):
             run_analysis()
         st.rerun()
 
-    # 红色建议区 - 直接放在按钮下方
+    # 红色建议区
     suggestion = st.session_state.latest_suggestion
     if suggestion:
         st.markdown(f"""
@@ -402,17 +407,16 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
-    # AI 分析详情（字号正常）
+    # AI 分析详情
     st.markdown("<div class='small-title'>🤖 AI 分析详情</div>", unsafe_allow_html=True)
     analysis = st.session_state.latest_analysis
-    # 移除【】中的内容，正常显示其余部分
     clean_analysis = re.sub(r'【.*?】', '', analysis)
     if clean_analysis.strip():
         st.markdown(clean_analysis.replace('\n', '<br>'), unsafe_allow_html=True)
     else:
         st.markdown(analysis.replace('\n', '<br>'), unsafe_allow_html=True)
 
-    # 技术指标（在下）
+    # 技术指标
     inds = st.session_state.indicators
     if inds:
         st.markdown("<div class='small-title'>📊 技术指标</div>", unsafe_allow_html=True)
