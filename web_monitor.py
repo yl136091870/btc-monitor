@@ -22,6 +22,8 @@ client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=BASE_URL)
 
 if "latest_analysis" not in st.session_state:
     st.session_state.latest_analysis = "点击下方按钮开始分析"
+if "latest_suggestion" not in st.session_state:
+    st.session_state.latest_suggestion = ""
 if "indicators" not in st.session_state:
     st.session_state.indicators = None
 
@@ -33,8 +35,12 @@ st.markdown("""
         padding-bottom: 0.2rem !important;
     }
     .stButton button { width: 100%; font-weight: bold; }
-    h3 { padding-top: 0.3rem; margin-bottom: 0.2rem; }
-    hr { margin: 0.2rem 0; }
+    .small-title {
+        font-size: 0.9rem;
+        font-weight: bold;
+        margin-top: 0.6rem;
+        margin-bottom: 0.2rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -187,12 +193,24 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 
     st.session_state.latest_analysis = analysis
 
+    # 提取【】中的短线建议
+    suggestion = ""
+    match = re.search(r'【(.*?)】', analysis)
+    if match:
+        suggestion = match.group(1)
+    st.session_state.latest_suggestion = suggestion
+
 def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
     
     # ---------- 小标题 + 温馨提示 ----------
     st.markdown("<h4 style='margin-top:0; margin-bottom:0.1rem;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
     st.caption("温馨提示：本页面仅用于AI交流学习，不构成任何投资建议。")
+
+    # ---------- 短线建议（直接显示在温馨提示下方）----------
+    suggestion = st.session_state.latest_suggestion
+    if suggestion:
+        st.markdown(f"<div style='color:#DB4437; font-weight:bold; margin-bottom:0.5rem;'>{suggestion}</div>", unsafe_allow_html=True)
 
     ticker = get_ticker()
     funding = get_funding_rate()
@@ -219,7 +237,7 @@ def main():
                 change_yesterday = (yesterday["close"] - yesterday["open"]) / yesterday["open"] * 100
 
     vol_btc = float(ticker.get("volCcy24h", 0))
-    volume_usdt = vol_btc * current_price  # 24小时成交额
+    volume_usdt = vol_btc * current_price
 
     # ---------- 第一行：当前价格、24h最高、24h最低 ----------
     st.markdown(f"""
@@ -241,8 +259,8 @@ def main():
 
     # ---------- 第二行：涨跌（涨红跌绿） ----------
     def color_str(val):
-        if val > 0: return f'<span style="color:#DB4437;">+{val:.2f}%</span>'    # 涨红色
-        elif val < 0: return f'<span style="color:#0F9D58;">{val:.2f}%</span>'   # 跌绿色
+        if val > 0: return f'<span style="color:#DB4437;">+{val:.2f}%</span>'
+        elif val < 0: return f'<span style="color:#0F9D58;">{val:.2f}%</span>'
         else: return '<span style="color:gray;">0.00%</span>'
 
     st.markdown(f"""
@@ -279,41 +297,32 @@ def main():
     # ---------- 技术指标 ----------
     inds = st.session_state.indicators
     if inds:
-        st.markdown("##### 📊 技术指标")
+        st.markdown("<div class='small-title'>📊 技术指标</div>", unsafe_allow_html=True)
         col_a, col_b = st.columns(2)
         if "15m" in inds:
-            col_a.markdown("<small><b>15分钟线</b>：MA5={MA5:.2f} MA20={MA20:.2f} MACD={MACD:.2f}</small>".format(**inds['15m']), unsafe_allow_html=True)
+            col_a.markdown("<small>15分线：MA5={MA5:.2f} MA20={MA20:.2f} MACD={MACD:.2f}</small>".format(**inds['15m']), unsafe_allow_html=True)
             col_a.markdown("<small>KDJ: K={K:.2f} D={D:.2f} J={J:.2f} RSI={RSI:.2f}</small>".format(**inds['15m']), unsafe_allow_html=True)
             col_a.markdown("<small>撑压(20/50)：{support_20:.2f}/{resistance_20:.2f} | {support_50:.2f}/{resistance_50:.2f}</small>".format(**inds['15m']), unsafe_allow_html=True)
         if "1h" in inds:
-            col_b.markdown("<small><b>1小时线</b>：MA5={MA5:.2f} MA20={MA20:.2f} 趋势={trend}</small>".format(**inds['1h']), unsafe_allow_html=True)
+            col_b.markdown("<small>1小时线：MA5={MA5:.2f} MA20={MA20:.2f} 趋势={trend}</small>".format(**inds['1h']), unsafe_allow_html=True)
             col_b.markdown("<small>撑压(50)：{support_50:.2f}/{resistance_50:.2f}</small>".format(**inds['1h']), unsafe_allow_html=True)
         if "5m" in inds:
-            col_b.markdown("<small><b>5分钟线</b>：趋势={trend} 成交量MA5={VOL_MA5:.2f} RSI={RSI:.2f}</small>".format(**inds['5m']), unsafe_allow_html=True)
+            col_b.markdown("<small>5分钟线：趋势={trend} 量MA5={VOL_MA5:.2f} RSI={RSI:.2f}</small>".format(**inds['5m']), unsafe_allow_html=True)
         if "1d" in inds:
-            col_a.markdown("<small><b>日线</b>：MA5={MA5:.2f} MA20={MA20:.2f} 趋势={trend}</small>".format(**inds['1d']), unsafe_allow_html=True)
+            col_a.markdown("<small>日线：MA5={MA5:.2f} MA20={MA20:.2f} 趋势={trend}</small>".format(**inds['1d']), unsafe_allow_html=True)
     else:
         st.caption("技术指标将在首次分析后显示")
 
     # ---------- AI 分析按钮与结果 ----------
-    st.subheader("🤖 AI 短线分析")
+    st.markdown("<div class='small-title'>🤖 AI 短线分析</div>", unsafe_allow_html=True)
     if st.button("🔍 手动触发 AI 分析", use_container_width=True):
         with st.spinner("分析中..."):
             run_analysis()
         st.rerun()
 
     analysis = st.session_state.latest_analysis
-    if "【" in analysis and "】" in analysis:
-        parts = re.split(r'(【.*?】)', analysis)
-        html_parts = []
-        for part in parts:
-            if part.startswith('【') and part.endswith('】'):
-                html_parts.append(f"<span style='color:red;font-weight:bold'>{part[1:-1]}</span>")
-            else:
-                html_parts.append(part.replace('\n', '<br>'))
-        st.markdown("".join(html_parts), unsafe_allow_html=True)
-    else:
-        st.markdown(f"<span style='color:red'>{analysis.replace(chr(10), '<br>')}</span>", unsafe_allow_html=True)
+    # 显示分析结果（不再重复显示建议，已提至顶部）
+    st.markdown(f"<small>{analysis.replace(chr(10), '<br>')}</small>", unsafe_allow_html=True)
 
     time.sleep(REFRESH_INTERVAL)
     st.rerun()
