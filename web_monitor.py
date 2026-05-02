@@ -36,7 +36,7 @@ st.markdown("""
     }
     .stButton button {
         width: auto !important;
-        min-width: 70px;
+        min-width: 80px;
         padding: 0.2rem 0.8rem;
         font-weight: bold;
     }
@@ -238,8 +238,9 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
     
-    # ---------- 标题行：标题 + AI分析按钮 ----------
-    col_title, col_btn = st.columns([5, 1])
+    # ---------- 标题行：标题 + AI分析按钮（并排）----------
+    # 调整列比例为7:2，确保按钮有足够空间且紧贴标题
+    col_title, col_btn = st.columns([7, 2])
     with col_title:
         st.markdown("<h4 style='margin:0; white-space:nowrap;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
     with col_btn:
@@ -264,25 +265,20 @@ def main():
 
     current_price = float(ticker["last"])
 
-    # ====== 新24h涨跌计算：基于北京时间0点开盘价 ======
+    # ====== 24h涨跌（北京时间0点开盘价） ======
     change_24h = 0.0
-    # 获取今日日K线（UTC+8 日线），提取开盘价
     daily_kline = get_candles("1D", 1)
     if daily_kline and len(daily_kline) > 0:
-        # OKX K线格式：[ts, o, h, l, c, vol, volCcy, volCcyQuote, confirm]
-        # 今日日K线（即使未完结）的开盘价即为北京时间0点开盘价
         try:
             open_beijing = float(daily_kline[0][1])
             if open_beijing > 0:
                 change_24h = (current_price - open_beijing) / open_beijing * 100
         except:
-            # 如果获取失败，回退到滚动24h开盘价
             change_24h = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
     else:
-        # 获取不到日K线，使用滚动24h开盘价
         change_24h = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
 
-    # 昨日涨跌（保持不变，基于昨日日K线）
+    # 昨日涨跌
     change_yesterday = 0.0
     daily_candles = get_candles("1D", 2)
     if daily_candles and len(daily_candles) >= 2:
@@ -353,16 +349,18 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ---------- 量额行 ----------
+    # ---------- 量额行（万 / 亿单位）----------
+    vol_btc_wan = vol_btc / 10000
+    volume_usdt_yi = volume_usdt / 100000000
     st.markdown(f"""
     <div class="data-row">
         <div class="data-item">
-            <div class="data-label">24h量(BTC)</div>
-            <div class="data-value">{vol_btc:.2f}</div>
+            <div class="data-label">24h量(万)</div>
+            <div class="data-value">{vol_btc_wan:.2f}</div>
         </div>
         <div class="data-item">
-            <div class="data-label">24h额(USDT)</div>
-            <div class="data-value">{volume_usdt:,.0f}</div>
+            <div class="data-label">24h额(亿)</div>
+            <div class="data-value">{volume_usdt_yi:.2f}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
