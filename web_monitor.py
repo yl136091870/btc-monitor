@@ -55,10 +55,28 @@ st.markdown("""
         color: gray;
         margin-bottom: 0.1rem;
     }
+    .data-row {
+        display: flex;
+        justify-content: space-around;
+        margin-bottom: 0.8rem;
+    }
+    .data-item {
+        line-height: 1.2;
+        text-align: center;
+        flex: 1;
+    }
+    .data-label {
+        font-size: 0.7rem;
+        color: gray;
+    }
+    .data-value {
+        font-size: 1.3rem;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- 数据获取函数（同前） ----------
+# ---------- 数据获取函数 ----------
 def get_ticker():
     try:
         resp = requests.get(f"{OKX_TICKER_URL}?instId={SYMBOL}", timeout=10)
@@ -215,7 +233,7 @@ KDJ(K/D/J)：{ind['K']:.2f}/{ind['D']:.2f}/{ind['J']:.2f} RSI：{ind['RSI']:.2f}
 def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
     
-    # ---------- 标题行：标题 + AI分析按钮（紧贴标题）----------
+    # ---------- 标题行：标题 + AI分析按钮 ----------
     col_title, col_btn = st.columns([5, 1])
     with col_title:
         st.markdown("<h4 style='margin:0; white-space:nowrap;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
@@ -259,24 +277,24 @@ def main():
     vol_btc = float(ticker.get("volCcy24h", 0))
     volume_usdt = vol_btc * current_price
 
-    # ---------- 当前价格单独一行，带小标题 ----------
-    st.markdown("""
+    # ---------- 当前价格单独一行 ----------
+    st.markdown(f"""
     <div style="margin-bottom:0.5rem;">
         <div class="price-label">当前价格</div>
-        <div class="price-large">{price:.2f} USDT</div>
+        <div class="price-large">{current_price:.2f} USDT</div>
     </div>
-    """.replace("{price:.2f}", f"{current_price:.2f}"), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-    # ---------- 24h最高/最低 ----------
+    # ---------- 24h最高 / 24h最低 (与下方涨跌对齐) ----------
     st.markdown(f"""
-    <div style="display:flex; justify-content:space-between; margin-bottom:0.8rem;">
-        <div style="line-height:1.2">
-            <span style="font-size:0.7rem; color:gray;">24h最高</span><br>
-            <span style="font-size:1.3rem; font-weight:bold;">{ticker['high24h']}</span>
+    <div class="data-row">
+        <div class="data-item">
+            <div class="data-label">24h最高</div>
+            <div class="data-value">{ticker['high24h']}</div>
         </div>
-        <div style="line-height:1.2; text-align:right">
-            <span style="font-size:0.7rem; color:gray;">24h最低</span><br>
-            <span style="font-size:1.3rem; font-weight:bold;">{ticker['low24h']}</span>
+        <div class="data-item">
+            <div class="data-label">24h最低</div>
+            <div class="data-value">{ticker['low24h']}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -288,28 +306,28 @@ def main():
         else: return '<span style="color:gray;">0.00%</span>'
 
     st.markdown(f"""
-    <div style="display:flex; justify-content:space-around; margin-bottom:0.8rem;">
-        <div style="line-height:1.2; text-align:center">
-            <span style="font-size:0.7rem; color:gray;">24h涨跌</span><br>
-            <span style="font-size:1.3rem; font-weight:bold;">{color_str(change_24h)}</span>
+    <div class="data-row">
+        <div class="data-item">
+            <div class="data-label">24h涨跌</div>
+            <div class="data-value">{color_str(change_24h)}</div>
         </div>
-        <div style="line-height:1.2; text-align:center">
-            <span style="font-size:0.7rem; color:gray;">昨日涨跌</span><br>
-            <span style="font-size:1.3rem; font-weight:bold;">{color_str(change_yesterday)}</span>
+        <div class="data-item">
+            <div class="data-label">昨日涨跌</div>
+            <div class="data-value">{color_str(change_yesterday)}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     # ---------- 量额行 ----------
     st.markdown(f"""
-    <div style="display:flex; justify-content:space-around; margin-bottom:0.8rem;">
-        <div style="line-height:1.2; text-align:center">
-            <span style="font-size:0.7rem; color:gray;">24h量(BTC)</span><br>
-            <span style="font-size:1.3rem; font-weight:bold;">{vol_btc:.2f}</span>
+    <div class="data-row">
+        <div class="data-item">
+            <div class="data-label">24h量(BTC)</div>
+            <div class="data-value">{vol_btc:.2f}</div>
         </div>
-        <div style="line-height:1.2; text-align:center">
-            <span style="font-size:0.7rem; color:gray;">24h额(USDT)</span><br>
-            <span style="font-size:1.3rem; font-weight:bold;">{volume_usdt:,.0f}</span>
+        <div class="data-item">
+            <div class="data-label">24h额(USDT)</div>
+            <div class="data-value">{volume_usdt:,.0f}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
