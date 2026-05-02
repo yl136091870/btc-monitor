@@ -263,9 +263,26 @@ def main():
         st.rerun()
 
     current_price = float(ticker["last"])
-    change_24h = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
 
-    # 昨日涨跌
+    # ====== 新24h涨跌计算：基于北京时间0点开盘价 ======
+    change_24h = 0.0
+    # 获取今日日K线（UTC+8 日线），提取开盘价
+    daily_kline = get_candles("1D", 1)
+    if daily_kline and len(daily_kline) > 0:
+        # OKX K线格式：[ts, o, h, l, c, vol, volCcy, volCcyQuote, confirm]
+        # 今日日K线（即使未完结）的开盘价即为北京时间0点开盘价
+        try:
+            open_beijing = float(daily_kline[0][1])
+            if open_beijing > 0:
+                change_24h = (current_price - open_beijing) / open_beijing * 100
+        except:
+            # 如果获取失败，回退到滚动24h开盘价
+            change_24h = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
+    else:
+        # 获取不到日K线，使用滚动24h开盘价
+        change_24h = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
+
+    # 昨日涨跌（保持不变，基于昨日日K线）
     change_yesterday = 0.0
     daily_candles = get_candles("1D", 2)
     if daily_candles and len(daily_candles) >= 2:
@@ -282,11 +299,10 @@ def main():
     vol_btc = float(ticker.get("volCcy24h", 0))
     volume_usdt = vol_btc * current_price
 
-    # 获取数据更新时间，转换为北京时间
+    # 数据获取时间（北京时间）
     ticker_ts = ticker.get("ts", "")
     if ticker_ts:
         try:
-            # OKX的ts是毫秒时间戳，先转为UTC时间再加8小时得到北京时间
             utc_time = datetime.utcfromtimestamp(int(ticker_ts) / 1000)
             beijing_time = utc_time + timedelta(hours=8)
             update_time = beijing_time.strftime("%H:%M:%S")
@@ -295,7 +311,7 @@ def main():
     else:
         update_time = (datetime.utcnow() + timedelta(hours=8)).strftime("%H:%M:%S")
 
-    # ---------- 当前价格居中，下方显示更新时间 ----------
+    # ---------- 当前价格居中 ----------
     st.markdown(f"""
     <div style="margin-bottom:0.5rem; text-align: center;">
         <div class="price-label">当前价格</div>
