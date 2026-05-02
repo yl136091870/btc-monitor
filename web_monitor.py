@@ -25,14 +25,24 @@ if "latest_analysis" not in st.session_state:
 if "indicators" not in st.session_state:
     st.session_state.indicators = None
 
-# ---------- 手机端紧凑样式 ----------
+# ---------- 全局紧凑样式 + 顶部留空 ----------
 st.markdown("""
 <style>
-    .block-container { padding-top: 0.2rem; padding-bottom: 0.2rem; }
+    /* 顶部留出三行空白 */
+    .block-container {
+        padding-top: 3.5rem !important;
+        padding-bottom: 0.2rem !important;
+    }
     .stButton button { width: 100%; font-weight: bold; }
-    .small-font { font-size: 0.8rem; }
-    h3 { padding-top: 0.5rem; margin-bottom: 0.2rem; }
+    h3 { padding-top: 0.3rem; margin-bottom: 0.2rem; }
     hr { margin: 0.2rem 0; }
+    /* 统一所有 metric 数值大小 */
+    .stMetric {
+        font-size: 1.3rem !important;
+    }
+    .stMetric label {
+        font-size: 0.8rem !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -43,7 +53,7 @@ def get_ticker():
         data = resp.json()
         if data.get("code") == "0" and data.get("data"):
             return data["data"][0]
-    except Exception:
+    except:
         pass
     return None
 
@@ -53,7 +63,7 @@ def get_funding_rate():
         data = resp.json()
         if data.get("code") == "0" and data.get("data"):
             return data["data"][0]
-    except Exception:
+    except:
         pass
     return None
 
@@ -63,7 +73,7 @@ def get_candles(bar="15m", limit=100):
         data = resp.json()
         if data.get("code") == "0":
             return data["data"]
-    except Exception:
+    except:
         pass
     return None
 
@@ -189,7 +199,7 @@ def main():
     st.set_page_config(page_title="BTC盯盘", layout="wide")
     
     # ---------- 小标题 + 温馨提示 ----------
-    st.markdown("<h3 style='margin-bottom:0.2rem;'>📈 BTC永续合约</h3>", unsafe_allow_html=True)
+    st.markdown("<h4 style='margin-top:0; margin-bottom:0.1rem;'>📈 BTC永续合约</h4>", unsafe_allow_html=True)
     st.caption("温馨提示：本页面仅用于AI交流学习，不构成任何投资建议。")
 
     ticker = get_ticker()
@@ -202,38 +212,18 @@ def main():
     current_price = float(ticker["last"])
     change_24h = (current_price - float(ticker["open24h"])) / float(ticker["open24h"]) * 100
 
-    # 当日涨跌
     sod_utc0 = float(ticker.get("sodUtc0", 0))
-    change_today = 0.0
-    if sod_utc0 > 0:
-        change_today = (current_price - sod_utc0) / sod_utc0 * 100
-
-    # 成交量（BTC）
+    change_today = (current_price - sod_utc0) / sod_utc0 * 100 if sod_utc0 != 0 else 0.0
     vol_btc = float(ticker.get("volCcy24h", 0))
 
-    # ---------- 第一行：当前价格、24h最高、24h最低 ----------
+    # ---------- 第一行：当前价格、24h最高、24h最低（统一字体大小） ----------
     col1, col2, col3 = st.columns(3)
-    price_html = """
-    <div style="line-height:1.2">
-        <span style="font-size:0.7rem; color:gray;">当前价格</span><br>
-        <span style="font-size:1.3rem; font-weight:bold;">{price:.2f}</span>
-    </div>
-    """
-    high_html = """
-    <div style="line-height:1.2">
-        <span style="font-size:0.7rem; color:gray;">24h最高</span><br>
-        <span style="font-size:1.1rem; font-weight:bold;">{high}</span>
-    </div>
-    """
-    low_html = """
-    <div style="line-height:1.2">
-        <span style="font-size:0.7rem; color:gray;">24h最低</span><br>
-        <span style="font-size:1.1rem; font-weight:bold;">{low}</span>
-    </div>
-    """
-    col1.markdown(price_html.format(price=current_price), unsafe_allow_html=True)
-    col2.markdown(high_html.format(high=ticker["high24h"]), unsafe_allow_html=True)
-    col3.markdown(low_html.format(low=ticker["low24h"]), unsafe_allow_html=True)
+    with col1:
+        st.metric("当前价格", f"{current_price:.2f}")
+    with col2:
+        st.metric("24h最高", ticker["high24h"])
+    with col3:
+        st.metric("24h最低", ticker["low24h"])
 
     # ---------- 第二行：24h涨跌、当日涨跌 ----------
     col4, col5 = st.columns(2)
@@ -246,7 +236,7 @@ def main():
     if funding:
         col7.caption(f"💰 资金费率: {funding.get('fundingRate','N/A')} | 下次结算: {funding.get('nextFundingTime','N/A')}")
 
-    # ---------- 技术指标（默认展示，但需要推送过数据才显示） ----------
+    # ---------- 技术指标（默认展示） ----------
     inds = st.session_state.indicators
     if inds:
         st.markdown("##### 📊 技术指标")
